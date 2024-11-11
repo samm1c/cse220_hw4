@@ -18,6 +18,8 @@ void place_ship(Player *p, int piece[4][4], int x, int y);
 void anchor(int piece[4][4], int *x, int *y);
 void add_guess(Player *player, char result, int column, int row);
 char *build_query(Player player);
+char *build_shot(Player player, char result);
+int is_ship_destroyed(char **board, int row, int col, int width, int height);
 
 /* define objects: */
 typedef struct {
@@ -26,19 +28,12 @@ typedef struct {
     int row;
 } Guess;
 
-// manage the actual ships on the board (remember that they're all size 4)
-typedef struct {
-    int piece_type[4][4];
-    int hits; // if hits == 4, the ship is destroyed
-} Ship;
-
 typedef struct {
     char **board;
     int ships_remaining;
     int socket_fd;
     Guess *guesses;
     int num_guesses;
-    Ship *ships[5];
 } Player;
 
 // defines the different shapes/rotations ships can take on
@@ -317,17 +312,10 @@ int main() {
         break;
     } 
     
-
-
     Player players[2] = {
         {create_board(height, width), 5, conn_fd_p1},
         {create_board(height, width), 5, conn_fd_p2}
     };
-
-    for (int i = 0; i < 5; i++) {
-        players[0].ships[i] = malloc(sizeof(Ship));
-        players[1].ships[i] = malloc(sizeof(Ship));
-    }
 
     /* INITIALIZE -> set 5 pieces for own board */
 
@@ -489,9 +477,6 @@ int main() {
     /* free history of guesses */
     free(players[0].guesses);
     free(players[1].guesses);
-    /* free player's ships */
-    free(players[0].ships);
-    free(players[1].ships);
 
     /* shut down server */
     printf("[Server] shutting down.\n");
@@ -589,9 +574,6 @@ void place_ship(Player *p, int piece[4][4], int x, int y) {
             if (piece[i][j] == 1) {
                 int pos_x = x + i;
                 int pos_y = y + j;
-
-                // add the ship to the player's ship type array
-                memcpy(p->ships[p->ships_remaining]->piece_type, piece, sizeof(Ship)); // set its ship type to this piece
 
                 p->ships_remaining++;
 
