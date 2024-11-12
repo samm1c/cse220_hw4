@@ -185,7 +185,8 @@ int main() {
     int conn_p1, conn_p2;
     struct sockaddr_in address1, address2;
     int opt = 1;
-    int addrlen = sizeof(address1); // only need one
+    int addrlen1 = sizeof(address1); // only need one
+    int addrlen2 = sizeof(address2);   
     char buffer[BUFFER_SIZE] = {0};
 
     /* create sockets */
@@ -240,7 +241,7 @@ int main() {
 
     /* accept connection from player 1 */
     printf("[Server] Connecting player 1...\n");
-    if ( (conn_p1 = accept(listen_fd_p1, (struct sockaddr *)&address1, (socklen_t *)&addrlen)) < 0 ) {
+    if ( (conn_p1 = accept(listen_fd_p1, (struct sockaddr *)&address1, (socklen_t *)&addrlen1)) < 0 ) {
         perror("[Server] player1's accept() failed.");
         exit(EXIT_FAILURE);
     }
@@ -248,7 +249,7 @@ int main() {
     
     /* accept connection from player 2 */
     printf("[Server] Connecting player 2...\n");
-    if ( (conn_p2 = accept(listen_fd_p2, (struct sockaddr *)&address2, (socklen_t *)&addrlen)) < 0 ) {
+    if ( (conn_p2 = accept(listen_fd_p2, (struct sockaddr *)&address2, (socklen_t *)&addrlen2)) < 0 ) {
         perror("[Server] player2's accept() failed.");
         exit(EXIT_FAILURE);
     }
@@ -288,7 +289,6 @@ int main() {
         if (packet_type == 'F') {
             printf("[Server] Player 1 has forfeited.\n");
             forfeit(&players[0], &players[1]);
-            //printf("hi forfeit was done");
             return EXIT_SUCCESS;
         } else if (packet_type != 'B') { // not a Begin packet!!
             printf("[Server] E 100\n");
@@ -344,6 +344,15 @@ int main() {
     // player 1
     for (int p = 0; p < 2; p++) {
         int not_initialized = 1; // the 5 pieces have been initialized on player's own board
+
+        // aliasing for enemy
+        Player enemy;
+        if (p == 0) {
+            enemy = players[1];
+        } else {
+            enemy = players[0];
+        }
+
         while (not_initialized) {
             not_initialized = 0; // assume everything is fine for now
             memset(buffer, 0, sizeof(buffer)); // clear buffer
@@ -352,7 +361,11 @@ int main() {
 
             packet_type = buffer[0];
 
-            if (packet_type != 'I') { // not an Initialize packet!!
+            if (packet_type == 'F') {
+                printf("[Server] Player %d has forfeited.\n", p+1);
+                forfeit(&players[p], &enemy);
+                return EXIT_SUCCESS;
+            } else if (packet_type != 'I') { // not an Initialize packet!!
                 printf("[Server] E 101\n");
                 send(players[p].socket, "E 101", 5, 0);
                 not_initialized = 1;
@@ -503,8 +516,9 @@ int main() {
                     free(query); // because it's dynamically allocated
                     break;
                 case 'F': // forfeit
-                    playing = 0; // stop playing
-                    break;
+                    printf("[Server] Player %d has forfeited.\n", p+1);
+                    forfeit(&players[p], &enemy);
+                    return EXIT_SUCCESS;
                 default:
                     printf("[Server] E 102\n");
                     send(players[p].socket, "E 102", 5, 0);
@@ -515,29 +529,26 @@ int main() {
             // after each turn -> check game status -> halt packet
             if (enemy.ships_remaining == 0) { // game is over and current player has won
                 send(players[p].socket, "H 1", 3, 0);
+
+                read(enemy.socket, buffer, BUFFER_SIZE - 1); // force a read from enemy
                 send(enemy.socket, "H 0", 3, 0);
-                break;
-            } else if (playing == 0) { // current player has forfeited and therefore lost
-                send(players[p].socket, "H 0", 3, 0);
-                send(enemy.socket, "H 1", 3, 0);
-                break;
+                // end game!!
+
+                /* free boards */
+                free_board(players[0].ship_board, height);
+                free_board(players[0].guessing_board, height);
+                free_board(players[1].ship_board, height);
+                free_board(players[1].guessing_board, height);
+
+                /* shut down server */
+                printf("[Server] Shutting down.\n");
+                close(conn_p1);
+                close(conn_p2);
+                return EXIT_SUCCESS;
+
             } // else continue on with the game!
         }
     }
-
-    /* free boards */
-    free_board(players[0].ship_board, height);
-    free_board(players[0].guessing_board, height);
-    free_board(players[1].ship_board, height);
-    free_board(players[1].guessing_board, height);
-
-    /* shut down server */
-    printf("[Server] Shutting down.\n");
-    // close(listen_fd_p1);
-    // close(listen_fd_p2);
-    close(conn_p1);
-    close(conn_p2);
-    return EXIT_SUCCESS;
 }
 
 char **create_board(int rows, int cols) {
