@@ -9,6 +9,16 @@
 #define PORT2 2202 // -> player 2
 #define BUFFER_SIZE 1024
 
+/* define objects: */
+
+typedef struct {
+    int socket;
+    char **ship_board;      // own board to place your 5 ships
+    char **guessing_board;  // blank board to track your guesses
+    int num_guesses;
+    int ships_remaining;    // number of PLAYER's own ships remaining
+} Player;
+
 /* function prototypes: */
 char **create_board(int rows, int cols);
 void free_board(char **board, int rows);
@@ -16,26 +26,11 @@ void print_board(char **board, int height, int width);
 int can_place_ship(char **board, int piece[4][4], int x, int y, int rows, int cols);
 void place_ship(Player *p, int piece[4][4], int x, int y);
 void anchor(int piece[4][4], int *x, int *y);
-void add_guess(Player *player, char result, int column, int row);
-char *build_query(Player player);
+char *build_query(Player player, int height, int width);
 char *build_shot(Player player, char result);
 int is_ship_destroyed(char **board, int row, int col, int width, int height);
+char *build_board_str(char **board, int height, int width);
 
-/* define objects: */
-typedef struct {
-    char result; // 'M' -> miss; 'H' -> hit
-    int column;
-    int row;
-} Guess;
-
-typedef struct {
-    int socket;
-    char **ship_board;      // own board to place your 5 ships
-    char **guessing_board;  // blank board to track your guesses
-    Guess *guesses;
-    int num_guesses;
-    int ships_remaining;    // number of PLAYER's own ships remaining
-} Player;
 
 // defines the different shapes/rotations ships can take on
 int pieces[7][4][4][4] = { // expecting 7 types of shapes, 4 different rotations for each, each represented in a 4x4 grid
@@ -220,25 +215,25 @@ int main() {
     address1.sin_addr.s_addr = INADDR_ANY;
     address1.sin_port = htons(PORT1);
     if (bind(listen_fd_p1, (struct sockaddr *)&address1, sizeof(address1)) < 0) {
-        perror("[Server] bind() failed.");
+        perror("[Server] bind()1 failed.");
         exit(EXIT_FAILURE);
     }
 
     address2.sin_family = AF_INET;
     address2.sin_addr.s_addr = INADDR_ANY;
-    address2.sin_port = htons(PORT1);
+    address2.sin_port = htons(PORT2);
     if (bind(listen_fd_p2, (struct sockaddr *)&address2, sizeof(address2)) < 0) {
-        perror("[Server] bind() failed.");
+        perror("[Server] bind()2 failed.");
         exit(EXIT_FAILURE);
     }
 
     /* listen for incoming connections; maximum 2 players */
-    if (listen(listen_fd_p1, 1) < 0) {
+    if (listen(listen_fd_p1, 2) < 0) {
         perror("[Server] listen() failed.");
         exit(EXIT_FAILURE);
     }
 
-    if (listen(listen_fd_p2, 1) < 0) {
+    if (listen(listen_fd_p2, 2) < 0) {
         perror("[Server] listen() failed.");
         exit(EXIT_FAILURE);
     }
@@ -273,6 +268,7 @@ int main() {
 
     // player 1 declares board size first
     while (1) {
+        memset(buffer, 0, sizeof(buffer)); // clear buffer
         num_bytes = read(conn_p1, buffer, BUFFER_SIZE - 1);
         buffer[num_bytes] = '\0'; // add null character at end 
 
@@ -343,7 +339,7 @@ int main() {
                 continue;
             }
 
-            char *ptr = buffer[2]; // pointer to traverse through the buffer
+            char *ptr = &buffer[2]; // pointer to traverse through the buffer
             int piece_type = -1, piece_rotation = -1, piece_column = -1, piece_row = -1;
             for (int i = 0; i < 5; i++) { // initialize 5 pieces
                 if (sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_column, &piece_row) == 4) {
@@ -358,12 +354,19 @@ int main() {
                         break;
                     }
 
-                    int piece[4][4] = pieces[piece_type][piece_rotation];
+                    // copy piece type into piece
+                    int piece[4][4];
+                    for (int x = 0; x < 4; x++) {
+                        for (int y = 0; y < 4; y++) {
+                            piece[x][y] = pieces[piece_type][piece_rotation][x][y];
+                        }
+                    }
+
                     anchor(piece, &piece_column, &piece_row);
 
                     // place piece on board
                     if (can_place_ship(players[p].ship_board, piece, piece_column, piece_row, width, height)) {
-                        place_ship(players[p].ship_board, piece, piece_column, piece_row);
+                        place_ship(&players[p], piece, piece_column, piece_row);
                     } else { 
                         // already printed error message from can_place_ship
                         not_initialized = 1; 
@@ -402,8 +405,10 @@ int main() {
     // print the initialized ship boards in the client
     char *p1_board = build_board_str(players[0].ship_board, height, width);
     send(players[0].socket, p1_board, sizeof(p1_board), 0);
+    free(p1_board);
     char *p2_board = build_board_str(players[0].ship_board, height, width);
     send(players[1].socket, p2_board, sizeof(p2_board), 0);
+    free(p2_board);
 
     /* play game! */
     int playing = 1; // true!
@@ -453,9 +458,8 @@ int main() {
                         enemy.ship_board[row][column] = 'M';
                         result = 'M';
                     }
-                    
-                    // add the guess to the player's history!
-                    add_guess(&players[p], result, column, row);
+
+                    players[p].num_guesses++;
 
                     char *shot = build_shot(players[p], result);
                     send(players[p].socket, shot, sizeof(shot), 0);
@@ -463,7 +467,7 @@ int main() {
                     
                     break;
                 case 'Q':
-                    char *query = build_query(players[p]);
+                    char *query = build_query(players[p], height, width);
                     send(players[p].socket, query, sizeof(query), 0);
                     free(query); // because it's dynamically allocated
                     break;
@@ -500,9 +504,6 @@ int main() {
     free_board(players[0].guessing_board, height);
     free_board(players[1].ship_board, height);
     free_board(players[1].guessing_board, height);
-    /* free history of guesses */
-    free(players[0].guesses);
-    free(players[1].guesses);
 
     /* shut down server */
     printf("[Server] shutting down.\n");
@@ -524,7 +525,7 @@ char **create_board(int rows, int cols) {
 
     /* initialize entire board to ~ to represent water by using memset on each row */
     for (int i = 0; i < rows; i++) {
-        memset(board[i], "~", sizeof(char *));
+        memset(board[i], '~', sizeof(char *));
     }
 
     return board;
@@ -561,7 +562,7 @@ int can_place_ship(char **board, int piece[4][4], int x, int y, int width, int h
                 int pos_y = y + j;
                 // check if out of bounds
                 if (pos_x < 0 || pos_y < 0 || pos_x >= width || pos_y >= height) {
-                    print("E 302");
+                    printf("E 302");
                     return 0;
                 }
                 // check if overlapping another ship
@@ -591,7 +592,7 @@ void place_ship(Player *p, int piece[4][4], int x, int y) {
                 p->ships_remaining++;
 
                 char c = p->ships_remaining + '0';
-                p->board[pos_x][pos_y] = c; // insert into board!!
+                p->ship_board[pos_x][pos_y] = c; // insert into board!!
             }
         }
     }
@@ -606,38 +607,25 @@ void anchor(int piece[4][4], int *x, int *y) {
     // else, leave as is
 }
 
-void add_guess(Player *player, char result, int column, int row) {
-    // dynamically manage memory for guesses
-    if (player->guesses == NULL) {
-        player->guesses = malloc(5 * sizeof(Guess));
-    } else if (player->num_guesses % 5 == 0) { // resize every 5 guesses
-        player->guesses = realloc(player->guesses, (player->num_guesses + 5) * sizeof(Guess));
-    }
-    // add the actual guess to the last index
-    player->guesses[player->num_guesses].result = result;
-    player->guesses[player->num_guesses].column = column;
-    player->guesses[player->num_guesses].row = row;
-    player->num_guesses++;
-}
-
-char *build_query(Player player) {
+char *build_query(Player player, int height, int width) {
     int size = player.num_guesses * 3;
     char *str = malloc(size);
 
     snprintf(str, size, "G %d", player.ships_remaining);
 
-    for (int i = 0; i < player.num_guesses; i++) {
-        char guess[20]; // temporary to store current guess in case not enough memory
-        snprintf(guess, 20, " %c %d %d", player.guesses->result, player.guesses->column, player.guesses->row);
-
-        int total_size = strlen(str) + strlen(guess) + 1; // since snprintf doesn't account for the null char
-        
-        if (total_size > size) { // double size if too small to fit this guess
-            size *= 2;
-            str = realloc(str, size);
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (player.guessing_board[i][j] == 'H' || player.guessing_board[i][j] == 'M') {
+                char guess[20];
+                snprintf(guess, size, " %c %d %d", player.guessing_board[i][j], j, i);
+                int total_size = strlen(str) + strlen(guess) + 1;
+                if (total_size > size) { // double size if too small to fit this guess
+                    size *= 2;
+                    str = realloc(str, size);
+                }
+                strcat(str, guess);
+            } // otherwise don't do anything, just keep check next index
         }
-
-        strcat(str, guess);
     }
 
     return str;
@@ -647,7 +635,7 @@ char *build_shot(Player player, char result) {
     int size = 20;
     char *str = malloc(size);
 
-    snprintf(str, "R %d %c", player.ships_remaining, result);
+    snprintf(str, size, "R %d %c", player.ships_remaining, result);
 
     return str;
 }
@@ -665,20 +653,21 @@ int is_ship_destroyed(char **board, int row, int col, int width, int height) {
 }
 
 char *build_board_str(char **board, int height, int width) {
-    char *str[height][width*2];
-    char r = 0, c = 0; // indexes for str
+    char *str = malloc((height * (width * 2)) + height + 1);
+    char s = 0; // index for str
     
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
-            str[r][c++] = board[i][j];
+            str[s++] = board[i][j];
             if (j == (width - 1)) { // last one in the column
-                str[r][c++] = '\n';
+                str[s++] = '\n';
             } else {
-                str[r][c++] = ' ';
+                str[s++] = ' ';
             }
         }
-        r++;
     }
-
     return str;
 }
+
+
+
