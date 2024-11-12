@@ -20,7 +20,6 @@ int main() {
     int client_fd = 0;
     struct sockaddr_in serv_addr;
     char buffer[BUFFER_SIZE] = {0};
-    printf("bruh what's going on...");
 
     // Create socket
     if ((client_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {

@@ -263,53 +263,78 @@ int main() {
 
     // variables
     char packet_type = ' ';
-    int width = 0, height = 0, num_bytes = 0;
+    int width = 0, height = 0, num_bytes = 0, num_scanned = 0;
     char msg[BUFFER_SIZE];
+    int playing = 1; // true!
 
     // player 1 declares board size first
-    while (1) {
+    while (playing) {
         memset(buffer, 0, sizeof(buffer)); // clear buffer
         num_bytes = read(conn_p1, buffer, BUFFER_SIZE - 1);
         buffer[num_bytes] = '\0'; // add null character at end 
 
-        if (num_bytes <= 0) { // NO PACKET
-            printf("E 200"); 
+        printf("[Server] Received: %s\n", buffer);
+
+        num_scanned = sscanf(buffer, "%c %d %d", &packet_type, &width, &height);  // read "B 11 11"
+
+        if (packet_type == 'F') {
+            printf("[Server] Player 1 has forfeited.\n");
+            send(conn_p1, "H 0", 3, 0);
+            send(conn_p2, "H 1", 3, 0);
+            playing = 0;
+            break;
+        } else if (packet_type != 'B') { // not a Begin packet!!
+            printf("[Server] E 100\n");
+            send(conn_p1, "E 100", 5, 0);
+            continue;
+        } else if (num_scanned != 3 || width < 10 || height < 10) {
+            printf("[Server] E 200\n");
+            send(conn_p1, "E 200", 5, 0);
             continue;
         }
 
-        sscanf(buffer, "%c %d %d", &packet_type, &width, &height);  // read "B 11 11"
-
-        if (packet_type != 'B') { // not a begin packet!!
-            printf("E 100"); 
-            continue;
-        }
-        if (width < 10 || height < 10) { // size must be at least 10x10
-            printf("E 200");
-            continue;
-        }
-        
         // otherwise, success!
-        send(conn_p1, "A", sizeof(char), 0);
+        send(conn_p1, "A", 1, 0);
         break;
     }
 
     // player 2 sends only "B"
-    while (1) {
+    while (playing) {
+        memset(buffer, 0, sizeof(buffer)); // clear buffer
         num_bytes = read(conn_p2, buffer, BUFFER_SIZE - 1);
         buffer[num_bytes] = '\0';
-    
-        if (num_bytes <= 0) {
-            printf("E 200"); // NO PACKET
-            continue;
-        }
-        if (strcmp(buffer, "B") != 0) {
-            printf("E 100"); // invalid packet type
+        packet_type = buffer[0];
+        printf("[Server] Received: %s\n", buffer);
+
+        if (packet_type == 'F') {
+            printf("[Server] Player 2 has forfeited.\n");
+            send(conn_p1, "H 0", 3, 0);
+            send(conn_p2, "H 1", 3, 0);
+            playing = 0;
+            break;
+        } else if (packet_type != 'B') { // not a Begin packet!!
+            printf("[Server] E 100\n");
+            send(conn_p2, "E 100", 5, 0);
+            break;
+        } else if (strcmp(buffer, "B") != 0) { // comparing strings b/c we want ONE B -> otherwise INVALID number of parameters
+            printf("[Server] E 200\n"); // invalid packet type
+            send(conn_p2, "E 200", 5, 0);
             continue;
         }
 
         // otherwise, success!
+        send(conn_p2, "A", 1, 0);
         break;
     } 
+
+    if (!playing) {
+        printf("[Server] Shutting down.\n");
+        close(listen_fd_p1);
+        close(listen_fd_p2);
+        close(conn_p1);
+        close(conn_p2);
+        return EXIT_SUCCESS;
+    }
 
     // create the 2 players
     Player players[2] = {
@@ -411,7 +436,6 @@ int main() {
     free(p2_board);
 
     /* play game! */
-    int playing = 1; // true!
     while (playing) {
         // process player's packet
         for (int p = 0; p < 2; p++) {
@@ -506,7 +530,7 @@ int main() {
     free_board(players[1].guessing_board, height);
 
     /* shut down server */
-    printf("[Server] shutting down.\n");
+    printf("[Server] Shutting down.\n");
     close(listen_fd_p1);
     close(listen_fd_p2);
     close(conn_p1);
@@ -668,6 +692,3 @@ char *build_board_str(char **board, int height, int width) {
     }
     return str;
 }
-
-
-
