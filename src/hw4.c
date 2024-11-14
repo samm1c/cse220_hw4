@@ -22,6 +22,7 @@ typedef struct {
 char **create_board(int rows, int cols);
 void free_board(char **board, int rows);
 void print_board(char **board, int height, int width);
+void clear_board(char ***board, int rows, int cols);
 int can_place_ship(Player player, int piece[4][4], int row, int col, int width, int height);
 void place_ship(Player *player, int piece[4][4], int row, int col);
 void anchor(int piece[4][4], int *row, int *col);
@@ -185,7 +186,7 @@ int main() {
     int conn_p1, conn_p2;
     struct sockaddr_in address1, address2;
     int opt = 1;
-    int addrlen1 = sizeof(address1); // only need one
+    int addrlen1 = sizeof(address1);
     int addrlen2 = sizeof(address2);   
     char buffer[BUFFER_SIZE] = {0};
 
@@ -269,11 +270,12 @@ int main() {
     int width = 0, height = 0, num_bytes = 0, num_scanned = 0;
     char msg[BUFFER_SIZE];
     int playing = 1; // true!
+    char *ptr;
 
     // create the 2 players
     Player players[2] = {
-        {.socket = conn_p1, .num_guesses = 0, .ships_remaining = 5},
-        {.socket = conn_p2, .num_guesses = 0, .ships_remaining = 5}
+        {.socket = conn_p1, .num_guesses = 0},
+        {.socket = conn_p2, .num_guesses = 0}
     };
 
     // player 1 declares board size first
@@ -281,10 +283,17 @@ int main() {
         memset(buffer, 0, sizeof(buffer)); // clear buffer
         num_bytes = read(conn_p1, buffer, BUFFER_SIZE - 1);
         buffer[num_bytes] = '\0'; // add null character at end 
+        ptr = &buffer[2];
 
         printf("[Server] Received: %s\n", buffer);
 
         num_scanned = sscanf(buffer, "%c %d %d", &packet_type, &width, &height);  // read "B 11 11"
+        
+        while (*ptr >= 'A' && *ptr <= 'Z') { ptr++; } // skip first char
+        while (*ptr == ' ') { ptr++; }                // skip first space
+        while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip first number
+        while (*ptr == ' ') { ptr++; }                // skip second space
+        while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip second number
 
         if (packet_type == 'F') {
             printf("[Server] Player 1 has forfeited.\n");
@@ -294,7 +303,7 @@ int main() {
             printf("[Server] E 100\n");
             send(conn_p1, "E 100", 5, 0);
             continue;
-        } else if (num_scanned != 3 || width < 10 || height < 10) {
+        } else if (num_scanned != 3 || *ptr != '\0' || width < 10 || height < 10) {
             printf("[Server] E 200\n");
             send(conn_p1, "E 200", 5, 0);
             continue;
@@ -341,7 +350,6 @@ int main() {
 
     /* INITIALIZE -> set 5 pieces for own board */
 
-    // player 1
     for (int p = 0; p < 2; p++) {
         int not_initialized = 1; // the 5 pieces have been initialized on player's own board
 
@@ -372,27 +380,58 @@ int main() {
                 continue;
             }
 
-            char *ptr = &buffer[2]; // pointer to traverse through the buffer
+            ptr = &buffer[2]; // pointer to traverse through the buffer
             int piece_type = -1, piece_rotation = -1, piece_column = -1, piece_row = -1;
+
+            // make sure the number of parameters is correct!
+            int moved = 0;
+            for (int i = 0; i < 20; i++) {
+                moved = 0;
+
+                while (*ptr >= '0' && *ptr <= '9') { moved = 1; ptr++; } // skip ith number
+                while (*ptr == ' ') { moved = 1; ptr++; }
+
+                if (!moved) {
+                    break;
+                }
+            }
+
+            if (!moved || *ptr != '\0') { // restart at beginning!
+                printf("[Server] E 201\n");
+                send(players[p].socket, "E 201", 5, 0);
+                not_initialized = 1;
+                continue;
+            }
+
+            ptr = &buffer[2]; // reset pointer
 
             for (int i = 0; i < 5; i++) { // initialize 5 pieces
                 num_scanned = sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_column, &piece_row);
+                // because my indices are 0-6 and 0-3 respectively
+                piece_type--; 
+                piece_rotation--;
 
                 // check for error
                 if (num_scanned != 4) {
                     printf("[Server] E 201\n");
                     send(players[p].socket, "E 201", 5, 0);
+                    clear_board(&players[p].ship_board, height, width);
+                    players[p].ships_remaining = 0;
                     not_initialized = 1;
                     break;
                 } else if (piece_type < 0 || piece_type > 6) {
                     printf("[Server] E 300\n");
                     send(players[p].socket, "E 300", 5, 0);
+                    clear_board(&players[p].ship_board, height, width);
+                    players[p].ships_remaining = 0;
                     not_initialized = 1;
                     break;
                 }
                 if (piece_rotation < 0 || piece_rotation > 3) {
                     printf("[Server] E 301\n");
                     send(players[p].socket, "E 301", 5, 0);
+                    clear_board(&players[p].ship_board, height, width);
+                    players[p].ships_remaining = 0;
                     not_initialized = 1;
                     break;
                 }
@@ -402,17 +441,25 @@ int main() {
                 for (int x = 0; x < 4; x++) {
                     for (int y = 0; y < 4; y++) {
                         piece[x][y] = pieces[piece_type][piece_rotation][x][y];
+                        //printf("%d", pieces[piece_type][piece_rotation][x][y]);
                     }
+                    //printf("\n");
                 }
+                //printf("---------\n");
 
                 // fix coordinates b/c of how the piece works
                 anchor(piece, &piece_row, &piece_column);
 
                 // place piece on board
                 if (can_place_ship(players[p], piece, piece_row, piece_column, width, height)) {
-                    place_ship(&players[p], piece, piece_column, piece_row);
+                    place_ship(&players[p], piece, piece_row, piece_column);
+                    print_board(players[p].ship_board, height, width);
                 } else { 
                     // already printed error message from can_place_ship
+                    print_board(players[p].ship_board, height, width);
+                    
+                    players[p].ships_remaining = 0;
+                    clear_board(&players[p].ship_board, height, width);
                     not_initialized = 1; 
                     break;
                 }
@@ -428,14 +475,14 @@ int main() {
                 }
                 // pointer should now be pointing to the next number
             }
-        }
 
-        if (not_initialized) {
-            continue;
-        } else { // success! player has initialized 5 ships on their own board!!
-            send(players[p].socket, "A", 1, 0);
-            break;
-        }
+            if (not_initialized) {
+                continue;
+            } else { // success! player has initialized 5 ships on their own board!!
+                send(players[p].socket, "A", 1, 0);
+                break;
+            }
+        }        
     }
 
     // print the initialized ship boards in the server
@@ -467,10 +514,9 @@ int main() {
             }
 
             switch (packet_type) {
-                case 'S':
+                case 'S': {
                     int row = -1, column = -1;
                     char result = ' ';
-
                     // check for errors
                     if (sscanf(buffer, "%c %d %d", &packet_type, &row, &column) != 3) {
                         printf("[Server] E 202\n");
@@ -510,11 +556,13 @@ int main() {
                     free(shot);
                     
                     break;
-                case 'Q':
+                }
+                case 'Q': {
                     char *query = build_query(players[p], height, width);
                     send(players[p].socket, query, sizeof(query), 0);
                     free(query); // because it's dynamically allocated
                     break;
+                }
                 case 'F': // forfeit
                     printf("[Server] Player %d has forfeited.\n", p+1);
                     forfeit(&players[p], &enemy);
@@ -545,10 +593,10 @@ int main() {
                 close(conn_p1);
                 close(conn_p2);
                 return EXIT_SUCCESS;
-
             } // else continue on with the game!
         }
     }
+    return EXIT_FAILURE;
 }
 
 char **create_board(int rows, int cols) {
@@ -562,7 +610,7 @@ char **create_board(int rows, int cols) {
 
     /* initialize entire board to ~ to represent water by using memset on each row */
     for (int i = 0; i < rows; i++) {
-        memset(board[i], '~', sizeof(char *));
+        memset(board[i], '~', cols * sizeof(char));
     }
 
     return board;
@@ -578,9 +626,16 @@ void free_board(char **board, int rows) {
 void print_board(char **board, int height, int width) {
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
-            printf("%d ", board[i][j]);
+            printf("%c ", board[i][j]);
         }
         printf("\n");
+    }
+    printf("\n");
+}
+
+void clear_board(char ***board, int rows, int cols) {
+    for (int i = 0; i < rows; i++) {
+        memset((*board)[i], '~', cols * sizeof(char));
     }
 }
 
@@ -590,6 +645,7 @@ void print_board(char **board, int height, int width) {
     returns 1 if possible, 0 if impossible (out-of-bounds, error 302; ship overlap, error 303)
 */
 int can_place_ship(Player player, int piece[4][4], int row, int col, int width, int height) {
+    printf("row %d\t col %d\t width %d\t height %d\t\n", row, col, width, height);
     // iterate over each cell in the piece and check if there are any 1's we can offset the x, y
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
@@ -605,6 +661,7 @@ int can_place_ship(Player player, int piece[4][4], int row, int col, int width, 
                 }
                 // check if overlapping another ship
                 if (player.ship_board[row][col] >= '1' && player.ship_board[row][col] <= '5') {
+                    printf("rw: %d\t clm: %d\t pos_x: %d\t pox_y: %d\t problem: %c\t\n", row, col, pos_x, pos_y, player.ship_board[row][col]);
                     printf("[Server] E 303\n");
                     send(player.socket, "E 303", 5, 0);
                     return 0;
@@ -622,13 +679,12 @@ int can_place_ship(Player player, int piece[4][4], int row, int col, int width, 
 */
 void place_ship(Player *player, int piece[4][4], int row, int col) {
     // iterate over each cell in the piece so that we can update the board accordingly
+    player->ships_remaining++;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             if (piece[i][j] == 1) {
                 int pos_x = row + i;
                 int pos_y = col + j;
-
-                player->ships_remaining++;
 
                 char c = player->ships_remaining + '0';
                 player->ship_board[pos_x][pos_y] = c; // insert into board!!
