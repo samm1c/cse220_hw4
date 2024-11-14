@@ -504,7 +504,6 @@ int main() {
                     int row = -1, column = -1;
                     char result = ' ';
                     // check for errors
-
                     ptr = &buffer[2];
                     while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip first number
                     while (*ptr == ' ')                { ptr++; } // skip first space
@@ -544,15 +543,16 @@ int main() {
                     players[p].num_guesses++;
 
                     char *shot = build_shot(players[p], result);
-                    send(players[p].socket, shot, sizeof(shot), 0);
+                    send(players[p].socket, shot, strlen(shot) + 1, 0);
                     free(shot);
                     
                     break;
                 }
                 case 'Q': {
                     char *query = build_query(players[p], height, width);
-                    send(players[p].socket, query, sizeof(query), 0);
+                    send(players[p].socket, query, strlen(query) + 1, 0);
                     free(query); // because it's dynamically allocated
+                    p--; // restart! still that player's turn
                     break;
                 }
                 case 'F': // forfeit
@@ -695,7 +695,7 @@ void anchor(int piece[4][4], int *row, int *col) {
 }
 
 char *build_query(Player player, int height, int width) {
-    int size = player.num_guesses * 3;
+    int size = (player.num_guesses * 6) + 5;
     char *str = malloc(size);
 
     snprintf(str, size, "G %d", player.ships_remaining);
@@ -703,14 +703,16 @@ char *build_query(Player player, int height, int width) {
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             if (player.guessing_board[i][j] == 'H' || player.guessing_board[i][j] == 'M') {
-                char guess[20];
-                snprintf(guess, size, " %c %d %d", player.guessing_board[i][j], j, i);
+                char guess[50];
+                snprintf(guess, size, " %c %d %d", player.guessing_board[i][j], i, j);
+                //printf("%s\n", guess);
                 int total_size = strlen(str) + strlen(guess) + 1;
                 if (total_size > size) { // double size if too small to fit this guess
                     size *= 2;
                     str = realloc(str, size);
                 }
                 strcat(str, guess);
+                //printf("%s\n", str);
             } // otherwise don't do anything, just keep check next index
         }
     }
