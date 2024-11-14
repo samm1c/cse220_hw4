@@ -29,7 +29,6 @@ void anchor(int piece[4][4], int *row, int *col);
 char *build_query(Player player, int height, int width);
 char *build_shot(Player player, char result);
 int is_ship_destroyed(char **board, int row, int col, int width, int height);
-char *build_board_str(char **board, int height, int width);
 void forfeit(Player *player, Player *enemy);
 
 // defines the different shapes/rotations ships can take on
@@ -387,10 +386,8 @@ int main() {
             int moved = 0;
             for (int i = 0; i < 20; i++) {
                 moved = 0;
-
                 while (*ptr >= '0' && *ptr <= '9') { moved = 1; ptr++; } // skip ith number
                 while (*ptr == ' ') { moved = 1; ptr++; }
-
                 if (!moved) {
                     break;
                 }
@@ -466,12 +463,8 @@ int main() {
                 
                 // update / move the pointer to the next number!
                 for (int j = 0; j < 4; j++) { // skip 4 numbers + spaces
-                    while (*ptr >= '0' && *ptr <= '9') { // skip number (no matter how big)
-                        ptr++;
-                    }
-                    while (*ptr == ' ') { // skip space
-                        ptr++;
-                    }
+                    while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip number (no matter how big)
+                    while (*ptr == ' ') { ptr++;}  // skip space
                 }
                 // pointer should now be pointing to the next number
             }
@@ -488,13 +481,6 @@ int main() {
     // print the initialized ship boards in the server
     print_board(players[0].ship_board, height, width);
     print_board(players[1].ship_board, height, width);
-    // print the initialized ship boards in the client
-    char *p1_board = build_board_str(players[0].ship_board, height, width);
-    send(players[0].socket, p1_board, sizeof(p1_board), 0);
-    free(p1_board);
-    char *p2_board = build_board_str(players[0].ship_board, height, width);
-    send(players[1].socket, p2_board, sizeof(p2_board), 0);
-    free(p2_board);
 
     /* play game! */
     while (playing) {
@@ -518,7 +504,13 @@ int main() {
                     int row = -1, column = -1;
                     char result = ' ';
                     // check for errors
-                    if (sscanf(buffer, "%c %d %d", &packet_type, &row, &column) != 3) {
+
+                    ptr = &buffer[2];
+                    while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip first number
+                    while (*ptr == ' ')                { ptr++; } // skip first space
+                    while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip second number
+
+                    if (sscanf(buffer, "%c %d %d", &packet_type, &row, &column) != 3 || *ptr != '\0') {
                         printf("[Server] E 202\n");
                         send(players[p].socket, "E 202", 5, 0);
                         p--;
@@ -745,23 +737,6 @@ int is_ship_destroyed(char **board, int row, int col, int width, int height) {
         }
     }
     return 1;
-}
-
-char *build_board_str(char **board, int height, int width) {
-    char *str = malloc((height * (width * 2)) + height + 1);
-    char s = 0; // index for str
-    
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            str[s++] = board[i][j];
-            if (j == (width - 1)) { // last one in the column
-                str[s++] = '\n';
-            } else {
-                str[s++] = ' ';
-            }
-        }
-    }
-    return str;
 }
 
 void forfeit(Player *player, Player *enemy) {
