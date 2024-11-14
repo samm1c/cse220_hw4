@@ -12,8 +12,7 @@
 /* define objects: */
 typedef struct {
     int socket;
-    char **ship_board;      // own board to place your 5 ships
-    char **guessing_board;  // blank board to track your guesses
+    char **board;
     int num_guesses;
     int ships_remaining;    // number of PLAYER's own ships remaining
 } Player;
@@ -274,8 +273,8 @@ int main() {
 
     // create the 2 players
     Player players[2] = {
-        {.socket = conn_p1, .guessing_board = NULL, .ship_board = NULL, .num_guesses = 0, .ships_remaining = 0},
-        {.socket = conn_p2, .guessing_board = NULL, .ship_board = NULL, .num_guesses = 0, .ships_remaining = 0}
+        {.socket = conn_p1, .board = NULL, .num_guesses = 0, .ships_remaining = 0},
+        {.socket = conn_p2, .board = NULL, .num_guesses = 0, .ships_remaining = 0}
     };
 
     // player 1 declares board size first
@@ -343,10 +342,8 @@ int main() {
     } 
 
     // create boards now that you have height and width
-    players[0].ship_board = create_board(height, width);
-    players[0].guessing_board = create_board(height, width);
-    players[1].ship_board = create_board(height, width);
-    players[1].guessing_board = create_board(height, width);
+    players[0].board = create_board(height, width);
+    players[1].board = create_board(height, width);
 
     /* INITIALIZE -> set 5 pieces for own board */
 
@@ -408,21 +405,21 @@ int main() {
                 // check for error
                 if (num_scanned != 4) {
                     error = min(error, 201);
-                    clear_board(&players[p].ship_board, height, width);
+                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
                     five_init = 0;
                     not_initialized = 1;
                     break;
                 } else if (piece_type < 0 || piece_type > 6) {
                     error = min(error, 300);
-                    clear_board(&players[p].ship_board, height, width);
+                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
                     five_init = 0;
                     not_initialized = 1;
                     continue;
                 } else if (piece_rotation < 0 || piece_rotation > 3) {
                     error = min(error, 301);
-                    clear_board(&players[p].ship_board, height, width);
+                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
                     five_init = 0;
                     not_initialized = 1;
@@ -455,7 +452,7 @@ int main() {
                         error = min(error, 303);
                     }
                     players[p].ships_remaining = 0;
-                    clear_board(&players[p].ship_board, height, width);
+                    clear_board(&players[p].board, height, width);
                     not_initialized = 1;
                     five_init = 0;
                 }
@@ -484,17 +481,12 @@ int main() {
 
     // print the initialized ship boards in the server
     printf("-------------------\n");
-    printf("Player 1 Ship Board\n");
-    print_board(players[0].ship_board, height, width);
+    printf("Player 1 Board\n");
+    print_board(players[0].board, height, width);
+
     printf("-------------------\n");
-    printf("Player 1 Guessing Board\n");
-    print_board(players[0].guessing_board, height, width);
-    printf("-------------------\n");
-    printf("Player 2 Ship Board\n");
-    print_board(players[1].ship_board, height, width);
-    printf("-------------------\n");
-    printf("Player 2 Guessing Board\n");
-    print_board(players[1].guessing_board, height, width);
+    printf("Player 2 Board\n");
+    print_board(players[1].board, height, width);
     printf("-------------------\n");
 
     /* play game! */
@@ -531,23 +523,23 @@ int main() {
                     } 
                     
                     // check spot
-                    if (players[p].guessing_board[row][column] == 'H' || players[p].guessing_board[row][column] == 'M') { // already guessed!
+                    if (players[p].board[row][column] == 'H' || players[p].board[row][column] == 'M') { // already guessed!
                         printf("[Server] E 401\n");
                         send(players[p].socket, "E 401", 5, 0);
                         p--;
                         break;
-                    } else if (players[p == 0 ? 1 : 0].ship_board[row][column] != '~') { // ship!!! b/c it's not water
+                    } else if (players[p == 0 ? 1 : 0].board[row][column] != '~') { // ship!!! b/c it's not water
                         result = 'H';
-                        players[p].guessing_board[row][column] = 'H';
-                        if (is_ship_destroyed(players[p == 0 ? 1 : 0].ship_board, row, column, width, height)) {
+                        players[p].board[row][column] = 'H';
+                        if (is_ship_destroyed(players[p == 0 ? 1 : 0].board, row, column, width, height)) {
                             players[p == 0 ? 1 : 0].ships_remaining--;
                         }
-                        players[p == 0 ? 1 : 0].ship_board[row][column] = 'H'; // update it on the enemy's board as well
-                        print_board(players[p == 0 ? 1 : 0].ship_board, height, width);
+                        players[p == 0 ? 1 : 0].board[row][column] = 'H'; // update it on the enemy's board as well
+                        print_board(players[p == 0 ? 1 : 0].board, height, width);
                     } else { // has to be ~ water so miss
                         result = 'M';
-                        players[p].guessing_board[row][column] = 'M';
-                        players[p == 0 ? 1 : 0].ship_board[row][column] = 'M';
+                        players[p].board[row][column] = 'M';
+                        players[p == 0 ? 1 : 0].board[row][column] = 'M';
                     }
 
                     players[p].num_guesses++;
@@ -585,10 +577,8 @@ int main() {
                 // end game!!
 
                 /* free boards */
-                free_board(players[0].ship_board, height);
-                free_board(players[0].guessing_board, height);
-                free_board(players[1].ship_board, height);
-                free_board(players[1].guessing_board, height);
+                free_board(players[0].board, height);
+                free_board(players[1].board, height);
 
                 /* shut down server */
                 printf("[Server] Shutting down.\n");
@@ -662,7 +652,7 @@ int can_place_ship(Player player, int piece[4][4], int row, int col, int width, 
                     return 302;
                 }
                 // check if overlapping another ship
-                if (player.ship_board[row][col] >= '1' && player.ship_board[row][col] <= '5') {
+                if (player.board[row][col] >= '1' && player.board[row][col] <= '5') {
                     //printf("rw: %d\t clm: %d\t pos_x: %d\t pox_y: %d\t problem: %c\t\n", row, col, pos_x, pos_y, player.ship_board[row][col]);
                     // printf("[Server] E 303\n");
                     // send(player.socket, "E 303", 5, 0);
@@ -689,7 +679,7 @@ void place_ship(Player *player, int piece[4][4], int row, int col) {
                 int pos_y = col + j;
 
                 char c = player->ships_remaining + '0';
-                player->ship_board[pos_x][pos_y] = c; // insert into board!!
+                player->board[pos_x][pos_y] = c; // insert into board!!
             }
         }
     }
@@ -701,7 +691,7 @@ void anchor(int piece[4][4], int *row, int *col) {
     } else if (piece[0][0] == 0) {
         col += 1;
     }
-    // else, leave as is
+    // else, leave as is, anchor is [0][0] by default
 }
 
 char *build_query(Player player, Player enemy, int height, int width) {
@@ -712,9 +702,9 @@ char *build_query(Player player, Player enemy, int height, int width) {
 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
-            if (player.guessing_board[i][j] == 'H' || player.guessing_board[i][j] == 'M') {
+            if (player.board[i][j] == 'H' || player.board[i][j] == 'M') {
                 char guess[50];
-                snprintf(guess, size, " %c %d %d", player.guessing_board[i][j], i, j);
+                snprintf(guess, size, " %c %d %d", player.board[i][j], i, j);
                 //printf("%s\n", guess);
                 int total_size = strlen(str) + strlen(guess) + 1;
                 if (total_size > size) { // double size if too small to fit this guess
@@ -763,13 +753,11 @@ void forfeit(Player *player, Player *enemy, int height) {
     send(enemy->socket, "H 1", 3, 0); // doesn't matter what the input is; enemy won! -> shut down
 
     /* free boards */
-    if (player->guessing_board != NULL) {
-        free_board(player->ship_board, height);
-        free_board(player->guessing_board, height);
+    if (player->board != NULL) {
+        free_board(player->board, height);
     }
-    if (enemy->guessing_board != NULL) {
-        free_board(enemy->ship_board, height);
-        free_board(enemy->guessing_board, height);
+    if (enemy->board != NULL) {
+        free_board(enemy->board, height);
     }
 
     close(player->socket);
