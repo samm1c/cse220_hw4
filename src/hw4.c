@@ -29,7 +29,7 @@ void anchor(int piece[4][4], int *row, int *col);
 char *build_query(Player player, Player enemy, int height, int width);
 char *build_shot(Player player, Player enemy, char result);
 int is_ship_destroyed(char **board, int row, int col, int width, int height);
-void forfeit(Player *player, Player *enemy);
+void forfeit(Player *player, Player *enemy, int height);
 
 // defines the different shapes/rotations ships can take on
 int pieces[7][4][4][4] = { // expecting 7 types of shapes, 4 different rotations for each, each represented in a 4x4 grid
@@ -273,8 +273,8 @@ int main() {
 
     // create the 2 players
     Player players[2] = {
-        {.socket = conn_p1, .num_guesses = 0},
-        {.socket = conn_p2, .num_guesses = 0}
+        {.socket = conn_p1, .guessing_board = NULL, .ship_board = NULL, .num_guesses = 0, .ships_remaining = 0},
+        {.socket = conn_p2, .guessing_board = NULL, .ship_board = NULL, .num_guesses = 0, .ships_remaining = 0}
     };
 
     // player 1 declares board size first
@@ -296,7 +296,7 @@ int main() {
 
         if (packet_type == 'F') {
             printf("[Server] Player 1 has forfeited.\n");
-            forfeit(&players[0], &players[1]);
+            forfeit(&players[0], &players[1], height);
             return EXIT_SUCCESS;
         } else if (packet_type != 'B') { // not a Begin packet!!
             printf("[Server] E 100\n");
@@ -324,7 +324,7 @@ int main() {
 
         if (packet_type == 'F') {
             printf("[Server] Player 2 has forfeited.\n");
-            forfeit(&players[1], &players[0]);
+            forfeit(&players[1], &players[0], height);
             return EXIT_FAILURE;
         } else if (packet_type != 'B') { // not a Begin packet!!
             printf("[Server] E 100\n");
@@ -352,14 +352,6 @@ int main() {
     for (int p = 0; p < 2; p++) {
         int not_initialized = 1; // the 5 pieces have been initialized on player's own board
 
-        // aliasing for enemy
-        Player enemy;
-        if (p == 0) {
-            enemy = players[1];
-        } else {
-            enemy = players[0];
-        }
-
         while (not_initialized) {
             not_initialized = 0; // assume everything is fine for now
             memset(buffer, 0, sizeof(buffer)); // clear buffer
@@ -370,7 +362,7 @@ int main() {
 
             if (packet_type == 'F') {
                 printf("[Server] Player %d has forfeited.\n", p+1);
-                forfeit(&players[p], &enemy);
+                forfeit(&players[p], &players[p == 0 ? 1 : 0], height);
                 return EXIT_SUCCESS;
             } else if (packet_type != 'I') { // not an Initialize packet!!
                 printf("[Server] E 101\n");
@@ -463,7 +455,7 @@ int main() {
                 // update / move the pointer to the next number!
                 for (int j = 0; j < 4; j++) { // skip 4 numbers + spaces
                     while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip number (no matter how big)
-                    while (*ptr == ' ') { ptr++;}  // skip space
+                    while (*ptr == ' ') { ptr++; }  // skip space
                 }
                 // pointer should now be pointing to the next number
             }
@@ -560,7 +552,7 @@ int main() {
                 }
                 case 'F': // forfeit
                     printf("[Server] Player %d has forfeited.\n", p+1);
-                    forfeit(&players[p], &players[p == 0 ? 1 : 0]);
+                    forfeit(&players[p], &players[p == 0 ? 1 : 0], height);
                     return EXIT_SUCCESS;
                 default:
                     printf("[Server] E 102\n");
@@ -748,12 +740,22 @@ int is_ship_destroyed(char **board, int row, int col, int width, int height) {
     return 1;
 }
 
-void forfeit(Player *player, Player *enemy) {
+void forfeit(Player *player, Player *enemy, int height) {
     char buffer[BUFFER_SIZE] = {0};
     send(player->socket, "H 0", 3, 0); // current player lost! -> will shut it down
 
     read(enemy->socket, buffer, BUFFER_SIZE - 1); // force a read from the other player
     send(enemy->socket, "H 1", 3, 0); // doesn't matter what the input is; enemy won! -> shut down
+
+    /* free boards */
+    if (player->guessing_board != NULL) {
+        free_board(player->ship_board, height);
+        free_board(player->guessing_board, height);
+    }
+    if (enemy->guessing_board != NULL) {
+        free_board(enemy->ship_board, height);
+        free_board(enemy->guessing_board, height);
+    }
 
     close(player->socket);
     close(enemy->socket);
