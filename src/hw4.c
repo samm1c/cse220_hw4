@@ -30,6 +30,7 @@ char *build_query(Player player, Player enemy, int height, int width);
 char *build_shot(Player player, Player enemy, char result);
 int is_ship_destroyed(char **board, int row, int col, int width, int height);
 void forfeit(Player *player, Player *enemy, int height);
+int min(int a, int b);
 
 // defines the different shapes/rotations ships can take on
 int pieces[7][4][4][4] = { // expecting 7 types of shapes, 4 different rotations for each, each represented in a 4x4 grid
@@ -350,13 +351,14 @@ int main() {
     /* INITIALIZE -> set 5 pieces for own board */
 
     for (int p = 0; p < 2; p++) {
-        int not_initialized = 1; // the 5 pieces have been initialized on player's own board
+        int not_initialized = 1;
 
         while (not_initialized) {
-            not_initialized = 0; // assume everything is fine for now
+            not_initialized = 0; // assume it is initialized for now
             memset(buffer, 0, sizeof(buffer)); // clear buffer
             num_bytes = read(players[p].socket, buffer, BUFFER_SIZE - 1);
             buffer[num_bytes] = '\0';
+            printf("[Server] Received: %s\n", buffer);
 
             packet_type = buffer[0];
 
@@ -372,14 +374,14 @@ int main() {
             }
 
             ptr = &buffer[2]; // pointer to traverse through the buffer
-            int piece_type = -1, piece_rotation = -1, piece_column = -1, piece_row = -1;
-
             // make sure the number of parameters is correct!
             int moved = 0;
             for (int i = 0; i < 20; i++) {
                 moved = 0;
+                if (*ptr == '-') { moved = 1; ptr++; } // skip hyphen for negative
                 while (*ptr >= '0' && *ptr <= '9') { moved = 1; ptr++; } // skip ith number
                 while (*ptr == ' ') { moved = 1; ptr++; }
+                
                 if (!moved) {
                     break;
                 }
@@ -393,38 +395,41 @@ int main() {
             }
 
             ptr = &buffer[2]; // reset pointer
+            int five_init = 1; // flag to keep track
+            int error = 500; // random number
 
             for (int i = 0; i < 5; i++) { // initialize 5 pieces
-                num_scanned = sscanf(ptr, "%d %d %d %d", &piece_type, &piece_rotation, &piece_column, &piece_row);
+                int piece_type = -1, piece_rotation = -1, piece_column = -1, piece_row = -1;
+                num_scanned = sscanf(ptr, " %d %d %d %d ", &piece_type, &piece_rotation, &piece_column, &piece_row);
                 // because my indices are 0-6 and 0-3 respectively
                 piece_type--; 
                 piece_rotation--;
 
                 // check for error
                 if (num_scanned != 4) {
-                    printf("[Server] E 201\n");
-                    send(players[p].socket, "E 201", 5, 0);
+                    error = min(error, 201);
                     clear_board(&players[p].ship_board, height, width);
                     players[p].ships_remaining = 0;
+                    five_init = 0;
                     not_initialized = 1;
                     break;
                 } else if (piece_type < 0 || piece_type > 6) {
-                    printf("[Server] E 300\n");
-                    send(players[p].socket, "E 300", 5, 0);
+                    error = min(error, 300);
                     clear_board(&players[p].ship_board, height, width);
                     players[p].ships_remaining = 0;
+                    five_init = 0;
                     not_initialized = 1;
-                    break;
+                    continue;
                 } else if (piece_rotation < 0 || piece_rotation > 3) {
-                    printf("[Server] E 301\n");
-                    send(players[p].socket, "E 301", 5, 0);
+                    error = min(error, 301);
                     clear_board(&players[p].ship_board, height, width);
                     players[p].ships_remaining = 0;
+                    five_init = 0;
                     not_initialized = 1;
-                    break;
+                    continue;
                 }
 
-                // no error -> copy piece type into piece -> have the 4x4 tetris piece on hand
+                // no error yet -> copy piece type into piece -> have the 4x4 tetris piece on hand
                 int piece[4][4];
                 for (int x = 0; x < 4; x++) {
                     for (int y = 0; y < 4; y++) {
@@ -439,34 +444,42 @@ int main() {
                 anchor(piece, &piece_row, &piece_column);
 
                 // place piece on board
-                if (can_place_ship(players[p], piece, piece_row, piece_column, width, height)) {
+                if (can_place_ship(players[p], piece, piece_row, piece_column, width, height) == 1) {
                     place_ship(&players[p], piece, piece_row, piece_column);
                     //print_board(players[p].ship_board, height, width);
                 } else { 
-                    // already printed error message from can_place_ship
                     //print_board(players[p].ship_board, height, width);
-                    
+                    if (can_place_ship(players[p], piece, piece_row, piece_column, width, height) == 302) {
+                        error = min(error, 302);
+                    } else if (can_place_ship(players[p], piece, piece_row, piece_column, width, height) == 303) {
+                        error = min(error, 303);
+                    }
                     players[p].ships_remaining = 0;
                     clear_board(&players[p].ship_board, height, width);
-                    not_initialized = 1; 
-                    break;
+                    not_initialized = 1;
+                    five_init = 0;
                 }
                 
                 // update / move the pointer to the next number!
                 for (int j = 0; j < 4; j++) { // skip 4 numbers + spaces
+                    if (*ptr == '-') { ptr++; } // skip hyphen for negative
                     while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip number (no matter how big)
                     while (*ptr == ' ') { ptr++; }  // skip space
                 }
                 // pointer should now be pointing to the next number
             }
 
-            if (not_initialized) {
-                continue;
-            } else { // success! player has initialized 5 ships on their own board!!
+            // success! this player has initialized 5 ships on their own board!!
+            if (five_init) {
                 send(players[p].socket, "A", 1, 0);
                 break;
+            } else { // not initialized -> print error first! -> back to the drawing board!!! 
+                char error_str[6];
+                sprintf(error_str, "E %d", error);
+                printf("[Server] %s\n", error_str);
+                send(players[p].socket, error_str, 6, 0);
             }
-        }        
+        }
     }
 
     // print the initialized ship boards in the server
@@ -499,8 +512,10 @@ int main() {
                     char result = ' ';
                     // check for errors
                     ptr = &buffer[2];
+                    if (*ptr == '-') { ptr++; } // skip hyphen for negative
                     while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip first number
                     while (*ptr == ' ')                { ptr++; } // skip first space
+                    if (*ptr == '-') { ptr++; } // skip hyphen for negative
                     while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip second number
 
                     if (sscanf(buffer, "%c %d %d", &packet_type, &row, &column) != 3 || *ptr != '\0') {
@@ -642,16 +657,16 @@ int can_place_ship(Player player, int piece[4][4], int row, int col, int width, 
                 int pos_y = col + j;
                 // check if out of bounds
                 if (pos_x < 0 || pos_y < 0 || pos_x >= width || pos_y >= height) {
-                    printf("[Server] E 302\n");
-                    send(player.socket, "E 302", 5, 0);
-                    return 0;
+                    // printf("[Server] E 302\n");
+                    // send(player.socket, "E 302", 5, 0);
+                    return 302;
                 }
                 // check if overlapping another ship
                 if (player.ship_board[row][col] >= '1' && player.ship_board[row][col] <= '5') {
                     //printf("rw: %d\t clm: %d\t pos_x: %d\t pox_y: %d\t problem: %c\t\n", row, col, pos_x, pos_y, player.ship_board[row][col]);
-                    printf("[Server] E 303\n");
-                    send(player.socket, "E 303", 5, 0);
-                    return 0;
+                    // printf("[Server] E 303\n");
+                    // send(player.socket, "E 303", 5, 0);
+                    return 303;
                 }
             }
         }
@@ -681,7 +696,7 @@ void place_ship(Player *player, int piece[4][4], int row, int col) {
 }
 
 void anchor(int piece[4][4], int *row, int *col) {
-    if ((piece[0][0] == 0) && (piece[0][1] == 0)) { // pieces[5][0] -> mirrored L needs y+2
+    if ((piece[0][0] == 0) && (piece[1][0] == 0)) { // pieces[5][0] -> mirrored L needs y+2
         col += 2;
     } else if (piece[0][0] == 0) {
         col += 1;
@@ -759,4 +774,12 @@ void forfeit(Player *player, Player *enemy, int height) {
 
     close(player->socket);
     close(enemy->socket);
+}
+
+int min(int a, int b) {
+    if (a < b) {
+        return a;
+    } else {
+        return b;
+    }
 }
