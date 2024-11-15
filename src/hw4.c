@@ -305,9 +305,7 @@ int main() {
 
     /* battleship! */
 
-    /* part 1 */
     /* BEGIN */
-
     // variables
     char packet_type = ' ';
     int width = 0, height = 0, num_bytes = 0, num_scanned = 0;
@@ -358,7 +356,6 @@ int main() {
     }
 
     // player 2 sends only "B"
-    playing = 1;
     while (playing) {
         memset(buffer, 0, sizeof(buffer)); // clear buffer
         num_bytes = read(conn_p2, buffer, BUFFER_SIZE - 1);
@@ -390,7 +387,6 @@ int main() {
     players[1].board = create_board(height, width);
 
     /* INITIALIZE -> set 5 pieces for own board */
-
     for (int p = 0; p < 2; p++) {
         int not_initialized = 1;
 
@@ -415,6 +411,7 @@ int main() {
             }
 
             ptr = &buffer[2]; // pointer to traverse through the buffer
+
             // make sure the number of parameters is correct!
             int moved = 0;
             for (int i = 0; i < 20; i++) {
@@ -436,12 +433,6 @@ int main() {
             }
 
             ptr = &buffer[2]; // reset pointer
-            int five_init = 1; // flag to keep track
-            int error = 500; // random number
-
-            // int piece_type1, piece_type2, piece_type3, piece_type4, piece_type5;
-            // int piece_rotation1, piece_rotation2, piece_rotation3, piece_rotation4, piece_rotation5;
-            // int piece_column1, piece_
 
             int piece_types[5], piece_rotations[5], piece_columns[5], piece_rows[5];
 
@@ -459,20 +450,27 @@ int main() {
                 not_initialized = 1;
                 continue;
             }
-            
+
+            int five_init = 1; // flag to keep track of whether 5 ships were successfully initialized
+            int error = __INT_MAX__; // random number; holds lowest error code
+
             for (int i = 0; i < 5; i++) {
                 // check for error
                 if (piece_types[i] < 1 || piece_types[i] > 7) {
                     error = min(error, 300);
+                    // bookkeeping  
+                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
-                    five_init = 0;
                     not_initialized = 1;
+                    five_init = 0;
                     continue;
                 } else if (piece_rotations[i] < 1 || piece_rotations[i] > 4) {
                     error = min(error, 301);
+                    // bookkeeping
+                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
-                    five_init = 0;
                     not_initialized = 1;
+                    five_init = 0;
                     continue;
                 }
                 
@@ -484,7 +482,7 @@ int main() {
                 int piece[4][4];
                 for (int x = 0; x < 4; x++) {
                     for (int y = 0; y < 4; y++) {
-                        piece[x][y] = pieces[ piece_types[i] ][ piece_rotations[i] ][x][y];
+                        piece[x][y] = pieces[piece_types[i]][piece_rotations[i]][x][y];
                     }
                 }
 
@@ -497,13 +495,14 @@ int main() {
                 if (outcome == 1) {
                     place_ship(&players[p], piece, piece_rows[i], piece_columns[i]);
                 } else { 
-                    if ( outcome == 302 ) {
+                    if (outcome == 302) {
                         error = min(error, 302);
-                    } else if ( outcome == 303 ) {
-                        error = min(error, 303 );
+                    } else if (outcome == 303) {
+                        error = min(error, 303);
                     }
-                    players[p].ships_remaining = 0;
+                    // bookkeeping
                     clear_board(&players[p].board, height, width);
+                    players[p].ships_remaining = 0;
                     not_initialized = 1;
                     five_init = 0;
                 }
@@ -513,8 +512,8 @@ int main() {
             if (five_init) {
                 send(players[p].socket, "A", 1, 0);
                     printf("-------------------\n");
-                    print_board(players[0].board, height, width);
-
+                    printf("Player %d:\n", p+1);
+                    print_board(players[p].board, height, width);
                     printf("-------------------\n");
                 break;
             } else { // not initialized -> print error first! -> back to the drawing board!!! 
@@ -522,21 +521,15 @@ int main() {
                 sprintf(error_str, "E %d", error);
                 printf("[Server] %s\n", error_str);
                 send(players[p].socket, error_str, 6, 0);
+
+                // bookkeeping
+                clear_board(&players[p].board, height, width);
+                players[p].ships_remaining = 0;
             }
         }
     }
 
-    // // print the initialized ship boards in the server
-    // printf("-------------------\n");
-    // printf("Player 1 Board\n");
-    // print_board(players[0].board, height, width);
-
-    // printf("-------------------\n");
-    // printf("Player 2 Board\n");
-    // print_board(players[1].board, height, width);
-    // printf("-------------------\n");
-
-    /* play game! */
+    /* PLAY! */
     while (playing) {
         // process player's packet
         for (int p = 0; p < 2; p++) {
@@ -545,7 +538,7 @@ int main() {
             buffer[num_bytes] = '\0';
             packet_type = buffer[0];
 
-            int enemy = (p == 0) ? 1 : 0;
+            int enemy = (p == 0) ? 1 : 0; // other player's index!
 
             switch (packet_type) {
                 case 'S': {
@@ -559,15 +552,15 @@ int main() {
                     if (*ptr == '-') { ptr++; } // skip hyphen for negative
                     while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip second number
 
-                    if (sscanf(buffer, "%c %d %d", &packet_type, &row, &column) != 3 || *ptr != '\0') {
+                    if (sscanf(buffer, "%c %d %d", &packet_type, &row, &column) != 3 || *ptr != '\0') { // # of parameters; must end properly
                         printf("[Server] E 202\n");
                         send(players[p].socket, "E 202", 5, 0);
-                        p--;
+                        p--; // restart! the increment p++ won't do anything, back to same index
                         break;
-                    } else if (row < 0 || column < 0 || row >= height || column >= width) {
+                    } else if (row < 0 || column < 0 || row >= height || column >= width) { // out of bounds
                         printf("[Server] E 400\n");
                         send(players[p].socket, "E 400", 5, 0);
-                        p--; // restart! the increment p++ won't do anything, back to same index
+                        p--; 
                         break;
                     } 
                     
@@ -577,11 +570,9 @@ int main() {
                         send(players[p].socket, "E 401", 5, 0);
                         p--;
                         break;
-                        
                     } else if (players[enemy].board[row][column] == '~') { // has to be ~ water so miss
                         result = 'M';
                         players[enemy].board[row][column] = 'M';
-                        
                     } else { // ship!!! b/c it's not water -> ship number
                         result = 'H';
                         if (is_ship_destroyed(players[enemy].board, row, column, width, height)) {
@@ -589,7 +580,7 @@ int main() {
                         }
                         players[enemy].board[row][column] = 'H'; // update it on the enemy's board
                     }
-                    printf("PLAYER %d\n", p+1);
+                    printf("Player %d:\n", p+1);
                     print_board(players[enemy].board, height, width);
 
                     players[p].num_guesses++;
@@ -611,7 +602,7 @@ int main() {
                     printf("[Server] Player %d has forfeited.\n", p+1);
                     forfeit(&players[p], &players[enemy], height);
                     return EXIT_SUCCESS;
-                default:
+                default: // otherwise, invalid packet type!! (not shoot, query, forfeit)
                     printf("[Server] E 102\n");
                     send(players[p].socket, "E 102", 5, 0);
                     p--;
@@ -624,12 +615,11 @@ int main() {
 
                 read(players[enemy].socket, buffer, BUFFER_SIZE - 1); // force a read from enemy
                 send(players[enemy].socket, "H 0", 3, 0);
-                // end game!!
 
+                // end game!!
                 /* free boards */
                 free_board(players[0].board, height);
                 free_board(players[1].board, height);
-
                 /* shut down server */
                 printf("[Server] Shutting down.\n");
                 close(conn_p1);
@@ -638,7 +628,6 @@ int main() {
             } // else continue on with the game!
         }
     }
-    return EXIT_FAILURE;
 }
 
 char **create_board(int rows, int cols) {
@@ -672,7 +661,6 @@ void print_board(char **board, int height, int width) {
         }
         printf("\n");
     }
-    printf("\n");
 }
 
 void clear_board(char ***board, int rows, int cols) {
@@ -682,12 +670,9 @@ void clear_board(char ***board, int rows, int cols) {
 }
 
 /*
-    pre-condition: x, y must be anchored beforehand depending on the shape type and rotation
-                   assume x, y is correct because it will be parsed in as piece_col, piece_row
-    returns 1 if possible, 0 if impossible (out-of-bounds, error 302; ship overlap, error 303)
+    pre-condition: row, col is anchored such that it aligns the piece (black circle)
 */
 int can_place_ship(Player player, int piece[4][4], int row, int col, int width, int height) {
-    //printf("row %d\t col %d\t width %d\t height %d\t\n", row, col, width, height);
     // iterate over each cell in the piece and check if there are any 1's we can offset the new row and column indices
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
@@ -700,10 +685,8 @@ int can_place_ship(Player player, int piece[4][4], int row, int col, int width, 
                 if (new_row < 0 || new_col < 0 || new_row >= height || new_col >= width) {  
                     return 302;
                 }
-
                 // check if overlapping another ship
                 if (player.board[new_row][new_col] != '~') {
-                    printf("I hate row %d\t and col %d\t\n", new_row, new_col);
                     return 303;
                 }
             }
@@ -713,9 +696,8 @@ int can_place_ship(Player player, int piece[4][4], int row, int col, int width, 
 }
 
 /*
-    pre-condition: x, y must be anchored beforehand depending on the shape type and rotation
-                   assuming piece is valid; conditional to catch errors should be done in the main
-    updates the actual board
+    pre-condition: row, col is anchored such that it aligns with the piece (black circle)
+                   given ship must be valid (checked via can_place_ship())
 */
 void place_ship(Player *player, int piece[4][4], int row, int col) {
     // iterate over each cell in the piece so that we can update the board accordingly
@@ -725,7 +707,6 @@ void place_ship(Player *player, int piece[4][4], int row, int col) {
             if (piece[i][j] == 1) {
                 int new_row = row + i;
                 int new_col = col + j;
-
                 char c = player->ships_remaining + '0';
                 player->board[new_row][new_col] = c; // insert into board!!
             }
@@ -753,14 +734,12 @@ char *build_query(Player player, Player enemy, int height, int width) {
             if (enemy.board[i][j] == 'H' || enemy.board[i][j] == 'M') {
                 char guess[50];
                 snprintf(guess, size, " %c %d %d", enemy.board[i][j], i, j);
-                //printf("%s\n", guess);
                 int total_size = strlen(str) + strlen(guess) + 1;
                 if (total_size > size) { // double size if too small to fit this guess
                     size *= 2;
                     str = realloc(str, size);
                 }
                 strcat(str, guess);
-                //printf("%s\n", str);
             } // otherwise don't do anything, just keep check next index
         }
     }
@@ -771,9 +750,7 @@ char *build_query(Player player, Player enemy, int height, int width) {
 char *build_shot(Player player, Player enemy, char result) {
     int size = 20;
     char *str = malloc(size);
-
     snprintf(str, size, "R %d %c", enemy.ships_remaining, result);
-
     return str;
 }
 
@@ -782,14 +759,10 @@ int is_ship_destroyed(char **board, int row, int col, int width, int height) {
     for (int i = 0; i < height; i++) { // search the board if there's any of this ship number left
         for (int j = 0; j < width; j++) {
             if ((i != row || j != col) && board[i][j] == c) { // is this index the only one left?
-                //printf("\nnope! row %d \t col %d \t \n", row, col);
-                //print_board(board, height, width);
                 return 0; // false, found it
             }
         }
     }
-    // printf("\nyup! row %d \t col %d \t \n", row, col);
-    //print_board(board, height, width);
     return 1;
 }
 
@@ -800,7 +773,7 @@ void forfeit(Player *player, Player *enemy, int height) {
     read(enemy->socket, buffer, BUFFER_SIZE - 1); // force a read from the other player
     send(enemy->socket, "H 1", 3, 0); // doesn't matter what the input is; enemy won! -> shut down
 
-    /* free boards */
+    /* free boards (if created) */
     if (player->board != NULL) {
         free_board(player->board, height);
     }
