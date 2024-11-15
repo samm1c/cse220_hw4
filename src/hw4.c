@@ -35,146 +35,190 @@ int min(int a, int b);
 int pieces[7][4][4][4] = { // expecting 7 types of shapes, 4 different rotations for each, each represented in a 4x4 grid
     { // shape 1 -> square!
         {
-            {1, 1},
-            {1, 1}
+            {1, 1, 0, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1},
-            {1, 1}
+            {1, 1, 0, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1},
-            {1, 1}
+            {1, 1, 0, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1},
-            {1, 1}
+            {1, 1, 0, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         }
     },
 
     { // shape 2 -> long 4
         {
-            {1},
-            {1},
-            {1},
-            {1}
+            {1, 0, 0, 0},
+            {1, 0, 0, 0},
+            {1, 0, 0, 0},
+            {1, 0, 0, 0}
         },
         {
-            {1, 1, 1, 1}
+            {1, 1, 1, 1},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1},
-            {1},
-            {1},
-            {1}
+            {1, 0, 0, 0},
+            {1, 0, 0, 0},
+            {1, 0, 0, 0},
+            {1, 0, 0, 0}
         },
         {
-            {1, 1, 1, 1}
+            {1, 1, 1, 1},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         }
     },
 
     { // shape 3 -> s
         {
-            {0, 1, 1},
-            {1, 1, 0}
+            {0, 1, 1, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1},
-            {1, 1},
-            {0, 1}
+            {1, 0, 0, 0},
+            {1, 1, 0, 0},
+            {0, 1, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {0, 1, 1},
-            {1, 1, 0}
+            {0, 1, 1, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1},
-            {1, 1},
-            {0, 1}
+            {1, 0, 0, 0},
+            {1, 1, 0, 0},
+            {0, 1, 0, 0},
+            {0, 0, 0, 0}
         }
     },
 
     { // shape 4 -> L
         {
-            {1},
-            {1},
-            {1, 1}
+            {1, 0, 0, 0},
+            {1, 0, 0, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1, 1},
-            {1}
+            {1, 1, 1, 0},
+            {1, 0, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1},
-            {0, 1},
-            {0, 1}
+            {1, 1, 0, 0},
+            {0, 1, 0, 0},
+            {0, 1, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {0, 0, 1},
-            {1, 1, 1}
+            {0, 0, 1, 0},
+            {1, 1, 1, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         }
     },
 
     { // shape 5 -> z
         {
-            {1, 1},
-            {0, 1, 1}
+            {1, 1, 0, 0},
+            {0, 1, 1, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {0, 1},
-            {1, 1},
-            {1}
+            {0, 1, 0, 0},
+            {1, 1, 0, 0},
+            {1, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1},
-            {0, 1, 1}
+            {1, 1, 0, 0},
+            {0, 1, 1, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {0, 1},
-            {1, 1},
-            {1}
+            {0, 1, 0, 0},
+            {1, 1, 0, 0},
+            {1, 0, 0, 0},
+            {0, 0, 0, 0}
         }
     },
 
     { // shape 6 -> mirrored L
         {
-            {0, 1},
-            {0, 1},
-            {1, 1}
+            {0, 1, 0, 0},
+            {0, 1, 0, 0},
+            {1, 1, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1},
-            {1, 1, 1}
+            {1, 0, 0, 0},
+            {1, 1, 1, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1},
-            {1},
-            {1}
+            {1, 1, 0, 0},
+            {1, 0, 0, 0},
+            {1, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1, 1, 1},
-            {0, 0, 1}
+            {1, 1, 1, 0},
+            {0, 0, 1, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         }
     },
 
     { // shape 7 -> T
         {
-            {1, 1, 1},
-            {0, 1, 0}
+            {1, 1, 1, 0},
+            {0, 1, 0, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {0, 1},
-            {1, 1},
-            {0, 1}
+            {0, 1, 0, 0},
+            {1, 1, 0, 0},
+            {0, 1, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {0, 1, 0},
-            {1, 1, 1}
+            {0, 1, 0, 0},
+            {1, 1, 1, 0},
+            {0, 0, 0, 0},
+            {0, 0, 0, 0}
         },
         {
-            {1},
-            {1, 1},
-            {1}
+            {1, 0, 0, 0},
+            {1, 1, 0, 0},
+            {1, 0, 0, 0},
+            {0, 0, 0, 0}
         }
     }
 };
@@ -395,80 +439,83 @@ int main() {
             int five_init = 1; // flag to keep track
             int error = 500; // random number
 
-            for (int i = 0; i < 5; i++) { // initialize 5 pieces
-                int piece_type = -1, piece_rotation = -1, piece_column = -1, piece_row = -1;
-                num_scanned = sscanf(ptr, " %d %d %d %d ", &piece_type, &piece_rotation, &piece_column, &piece_row);
-                // because my indices are 0-6 and 0-3 respectively
-                piece_type--; 
-                piece_rotation--;
+            // int piece_type1, piece_type2, piece_type3, piece_type4, piece_type5;
+            // int piece_rotation1, piece_rotation2, piece_rotation3, piece_rotation4, piece_rotation5;
+            // int piece_column1, piece_
 
+            int piece_types[5], piece_rotations[5], piece_columns[5], piece_rows[5];
+
+            num_scanned = sscanf(ptr, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+                                &piece_types[0], &piece_rotations[0], &piece_columns[0], &piece_rows[0],
+                                &piece_types[1], &piece_rotations[1], &piece_columns[1], &piece_rows[1],
+                                &piece_types[2], &piece_rotations[2], &piece_columns[2], &piece_rows[2],
+                                &piece_types[3], &piece_rotations[3], &piece_columns[3], &piece_rows[3],
+                                &piece_types[4], &piece_rotations[4], &piece_columns[4], &piece_rows[4]);
+            
+            // check for scan error
+            if (num_scanned != 20) {
+                printf("[Server] E 201\n");
+                send(players[p].socket, "E 201", 5, 0);
+                not_initialized = 1;
+                continue;
+            }
+            
+            for (int i = 0; i < 5; i++) {
                 // check for error
-                if (num_scanned != 4) {
-                    error = min(error, 201);
-                    clear_board(&players[p].board, height, width);
-                    players[p].ships_remaining = 0;
-                    five_init = 0;
-                    not_initialized = 1;
-                    break;
-                } else if (piece_type < 0 || piece_type > 6) {
+                if (piece_types[i] < 1 || piece_types[i] > 7) {
                     error = min(error, 300);
-                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
                     five_init = 0;
                     not_initialized = 1;
                     continue;
-                } else if (piece_rotation < 0 || piece_rotation > 3) {
+                } else if (piece_rotations[i] < 1 || piece_rotations[i] > 4) {
                     error = min(error, 301);
-                    clear_board(&players[p].board, height, width);
                     players[p].ships_remaining = 0;
                     five_init = 0;
                     not_initialized = 1;
                     continue;
                 }
+                
+                // because my indices are 0-6 and 0-3 respectively
+                piece_types[i]--; 
+                piece_rotations[i]--;
 
                 // no error yet -> copy piece type into piece -> have the 4x4 tetris piece on hand
                 int piece[4][4];
                 for (int x = 0; x < 4; x++) {
                     for (int y = 0; y < 4; y++) {
-                        piece[x][y] = pieces[piece_type][piece_rotation][x][y];
-                        //printf("%d", pieces[piece_type][piece_rotation][x][y]);
+                        piece[x][y] = pieces[ piece_types[i] ][ piece_rotations[i] ][x][y];
                     }
-                    //printf("\n");
                 }
-                //printf("---------\n");
 
                 // fix coordinates b/c of how the piece works
-                anchor(piece, &piece_row, &piece_column);
+                anchor(piece, &piece_rows[i], &piece_columns[i]);
 
                 // place piece on board
-                if (can_place_ship(players[p], piece, piece_row, piece_column, width, height) == 1) {
-                    place_ship(&players[p], piece, piece_row, piece_column);
-                    //print_board(players[p].ship_board, height, width);
+                int outcome = can_place_ship(players[p], piece, piece_rows[i], piece_columns[i], width, height);
+
+                if (outcome == 1) {
+                    place_ship(&players[p], piece, piece_rows[i], piece_columns[i]);
                 } else { 
-                    //print_board(players[p].ship_board, height, width);
-                    if (can_place_ship(players[p], piece, piece_row, piece_column, width, height) == 302) {
+                    if ( outcome == 302 ) {
                         error = min(error, 302);
-                    } else if (can_place_ship(players[p], piece, piece_row, piece_column, width, height) == 303) {
-                        error = min(error, 303);
+                    } else if ( outcome == 303 ) {
+                        error = min(error, 303 );
                     }
                     players[p].ships_remaining = 0;
                     clear_board(&players[p].board, height, width);
                     not_initialized = 1;
                     five_init = 0;
                 }
-                
-                // update / move the pointer to the next number!
-                for (int j = 0; j < 4; j++) { // skip 4 numbers + spaces
-                    if (*ptr == '-') { ptr++; } // skip hyphen for negative
-                    while (*ptr >= '0' && *ptr <= '9') { ptr++; } // skip number (no matter how big)
-                    while (*ptr == ' ') { ptr++; }  // skip space
-                }
-                // pointer should now be pointing to the next number
             }
 
             // success! this player has initialized 5 ships on their own board!!
             if (five_init) {
                 send(players[p].socket, "A", 1, 0);
+                    printf("-------------------\n");
+                    print_board(players[0].board, height, width);
+
+                    printf("-------------------\n");
                 break;
             } else { // not initialized -> print error first! -> back to the drawing board!!! 
                 char error_str[6];
@@ -479,15 +526,15 @@ int main() {
         }
     }
 
-    // print the initialized ship boards in the server
-    printf("-------------------\n");
-    printf("Player 1 Board\n");
-    print_board(players[0].board, height, width);
+    // // print the initialized ship boards in the server
+    // printf("-------------------\n");
+    // printf("Player 1 Board\n");
+    // print_board(players[0].board, height, width);
 
-    printf("-------------------\n");
-    printf("Player 2 Board\n");
-    print_board(players[1].board, height, width);
-    printf("-------------------\n");
+    // printf("-------------------\n");
+    // printf("Player 2 Board\n");
+    // print_board(players[1].board, height, width);
+    // printf("-------------------\n");
 
     /* play game! */
     while (playing) {
@@ -497,6 +544,8 @@ int main() {
             num_bytes = read(players[p].socket, buffer, BUFFER_SIZE - 1);
             buffer[num_bytes] = '\0';
             packet_type = buffer[0];
+
+            int enemy = (p == 0) ? 1 : 0;
 
             switch (packet_type) {
                 case 'S': {
@@ -523,35 +572,36 @@ int main() {
                     } 
                     
                     // check spot
-                    if (players[p].board[row][column] == 'H' || players[p].board[row][column] == 'M') { // already guessed!
+                    if (players[enemy].board[row][column] == 'H' || players[enemy].board[row][column] == 'M') { // already guessed!
                         printf("[Server] E 401\n");
                         send(players[p].socket, "E 401", 5, 0);
                         p--;
                         break;
-                    } else if (players[p == 0 ? 1 : 0].board[row][column] != '~') { // ship!!! b/c it's not water
-                        result = 'H';
-                        players[p].board[row][column] = 'H';
-                        if (is_ship_destroyed(players[p == 0 ? 1 : 0].board, row, column, width, height)) {
-                            players[p == 0 ? 1 : 0].ships_remaining--;
-                        }
-                        players[p == 0 ? 1 : 0].board[row][column] = 'H'; // update it on the enemy's board as well
-                        print_board(players[p == 0 ? 1 : 0].board, height, width);
-                    } else { // has to be ~ water so miss
+                        
+                    } else if (players[enemy].board[row][column] == '~') { // has to be ~ water so miss
                         result = 'M';
-                        players[p].board[row][column] = 'M';
-                        players[p == 0 ? 1 : 0].board[row][column] = 'M';
+                        players[enemy].board[row][column] = 'M';
+                        
+                    } else { // ship!!! b/c it's not water -> ship number
+                        result = 'H';
+                        if (is_ship_destroyed(players[enemy].board, row, column, width, height)) {
+                            players[enemy].ships_remaining--;
+                        }
+                        players[enemy].board[row][column] = 'H'; // update it on the enemy's board
                     }
+                    printf("PLAYER %d\n", p+1);
+                    print_board(players[enemy].board, height, width);
 
                     players[p].num_guesses++;
 
-                    char *shot = build_shot(players[p], players[p == 0 ? 1 : 0], result);
+                    char *shot = build_shot(players[p], players[enemy], result);
                     send(players[p].socket, shot, strlen(shot) + 1, 0);
                     free(shot);
                     
                     break;
                 }
                 case 'Q': {
-                    char *query = build_query(players[p], players[p == 0 ? 1 : 0], height, width);
+                    char *query = build_query(players[p], players[enemy], height, width);
                     send(players[p].socket, query, strlen(query) + 1, 0);
                     free(query); // because it's dynamically allocated
                     p--; // restart! still that player's turn
@@ -559,7 +609,7 @@ int main() {
                 }
                 case 'F': // forfeit
                     printf("[Server] Player %d has forfeited.\n", p+1);
-                    forfeit(&players[p], &players[p == 0 ? 1 : 0], height);
+                    forfeit(&players[p], &players[enemy], height);
                     return EXIT_SUCCESS;
                 default:
                     printf("[Server] E 102\n");
@@ -569,11 +619,11 @@ int main() {
             }
 
             // after each turn -> check game status -> halt packet
-            if (players[p == 0 ? 1 : 0].ships_remaining == 0) { // game is over and current player has won
+            if (players[enemy].ships_remaining == 0) { // game is over and current player has won
                 send(players[p].socket, "H 1", 3, 0);
 
-                read(players[p == 0 ? 1 : 0].socket, buffer, BUFFER_SIZE - 1); // force a read from enemy
-                send(players[p == 0 ? 1 : 0].socket, "H 0", 3, 0);
+                read(players[enemy].socket, buffer, BUFFER_SIZE - 1); // force a read from enemy
+                send(players[enemy].socket, "H 0", 3, 0);
                 // end game!!
 
                 /* free boards */
@@ -638,24 +688,22 @@ void clear_board(char ***board, int rows, int cols) {
 */
 int can_place_ship(Player player, int piece[4][4], int row, int col, int width, int height) {
     //printf("row %d\t col %d\t width %d\t height %d\t\n", row, col, width, height);
-    // iterate over each cell in the piece and check if there are any 1's we can offset the x, y
+    // iterate over each cell in the piece and check if there are any 1's we can offset the new row and column indices
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             if (piece[i][j] == 1) {
                 // update new board coordinates
-                int pos_x = row + i;
-                int pos_y = col + j;
+                int new_row = row + i;
+                int new_col = col + j;
+
                 // check if out of bounds
-                if (pos_x < 0 || pos_y < 0 || pos_x >= width || pos_y >= height) {
-                    // printf("[Server] E 302\n");
-                    // send(player.socket, "E 302", 5, 0);
+                if (new_row < 0 || new_col < 0 || new_row >= height || new_col >= width) {  
                     return 302;
                 }
+
                 // check if overlapping another ship
-                if (player.board[row][col] >= '1' && player.board[row][col] <= '5') {
-                    //printf("rw: %d\t clm: %d\t pos_x: %d\t pox_y: %d\t problem: %c\t\n", row, col, pos_x, pos_y, player.ship_board[row][col]);
-                    // printf("[Server] E 303\n");
-                    // send(player.socket, "E 303", 5, 0);
+                if (player.board[new_row][new_col] != '~') {
+                    printf("I hate row %d\t and col %d\t\n", new_row, new_col);
                     return 303;
                 }
             }
@@ -675,11 +723,11 @@ void place_ship(Player *player, int piece[4][4], int row, int col) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             if (piece[i][j] == 1) {
-                int pos_x = row + i;
-                int pos_y = col + j;
+                int new_row = row + i;
+                int new_col = col + j;
 
                 char c = player->ships_remaining + '0';
-                player->board[pos_x][pos_y] = c; // insert into board!!
+                player->board[new_row][new_col] = c; // insert into board!!
             }
         }
     }
@@ -687,9 +735,9 @@ void place_ship(Player *player, int piece[4][4], int row, int col) {
 
 void anchor(int piece[4][4], int *row, int *col) {
     if ((piece[0][0] == 0) && (piece[1][0] == 0)) { // pieces[5][0] -> mirrored L needs y+2
-        col += 2;
+        *row -= 2;
     } else if (piece[0][0] == 0) {
-        col += 1;
+        *row -= 1;
     }
     // else, leave as is, anchor is [0][0] by default
 }
@@ -702,9 +750,9 @@ char *build_query(Player player, Player enemy, int height, int width) {
 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
-            if (player.board[i][j] == 'H' || player.board[i][j] == 'M') {
+            if (enemy.board[i][j] == 'H' || enemy.board[i][j] == 'M') {
                 char guess[50];
-                snprintf(guess, size, " %c %d %d", player.board[i][j], i, j);
+                snprintf(guess, size, " %c %d %d", enemy.board[i][j], i, j);
                 //printf("%s\n", guess);
                 int total_size = strlen(str) + strlen(guess) + 1;
                 if (total_size > size) { // double size if too small to fit this guess
